@@ -1,7 +1,8 @@
 "use client";
 
-import { LayoutGrid, User, Sparkles, Heart, MapPinned } from "lucide-react";
+import { LayoutGrid, User, Sparkles, Heart, MapPinned, LogOut } from "lucide-react";
 import type { Tab } from "../types";
+import { createClient } from "../lib/supabase/client";
 
 interface SidebarProps {
   activeTab: Tab;
@@ -22,6 +23,12 @@ const navItems: {
 ];
 
 export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  };
+
   return (
     <aside className="hidden w-[290px] shrink-0 px-5 py-5 lg:block">
       <div className="glass-panel flex h-full flex-col rounded-[34px] px-6 py-7">
@@ -72,7 +79,25 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
           })}
         </nav>
 
-        <div className="mt-auto" />
+        <div className="mt-auto pt-6">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-4 rounded-[22px] border border-[var(--line-soft)] bg-white px-4 py-4 text-left transition hover:bg-[var(--bg-soft)]"
+          >
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--bg-soft)] text-[var(--text-main)]">
+              <LogOut size={18} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[15px] font-medium tracking-[-0.02em] text-[var(--text-main)]">
+                退出登录
+              </p>
+              <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[var(--text-soft)]">
+                Sign Out
+              </p>
+            </div>
+          </button>
+        </div>
       </div>
     </aside>
   );
