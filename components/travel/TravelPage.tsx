@@ -1,7 +1,11 @@
 "use client";
 
 import { Check, Edit2, Trash2, X, CalendarDays, MapPinned } from "lucide-react";
-import type { Destination, DestinationStatus } from "../../hooks/useDestinations";
+import type {
+  Destination,
+  DestinationStatus,
+  DestinationDatePrecision,
+} from "../../hooks/useDestinations";
 import TravelHeader from "./TravelHeader";
 
 interface TravelPageProps {
@@ -11,11 +15,13 @@ interface TravelPageProps {
   destinationNote: string;
   destinationDate: string;
   destinationStatus: DestinationStatus;
+  destinationDatePrecision: DestinationDatePrecision;
   setDestinationName: (value: string) => void;
   setDestinationCountry: (value: string) => void;
   setDestinationNote: (value: string) => void;
   setDestinationDate: (value: string) => void;
   setDestinationStatus: (value: DestinationStatus) => void;
+  setDestinationDatePrecision: (value: DestinationDatePrecision) => void;
   onAddDestination: () => Promise<void> | void;
 
   editingDestinationId: number | null;
@@ -24,12 +30,14 @@ interface TravelPageProps {
   editingDestinationNote: string;
   editingDestinationDate: string;
   editingDestinationStatus: DestinationStatus;
+  editingDestinationDatePrecision: DestinationDatePrecision;
   setEditingDestinationId: (value: number | null) => void;
   setEditingDestinationName: (value: string) => void;
   setEditingDestinationCountry: (value: string) => void;
   setEditingDestinationNote: (value: string) => void;
   setEditingDestinationDate: (value: string) => void;
   setEditingDestinationStatus: (value: DestinationStatus) => void;
+  setEditingDestinationDatePrecision: (value: DestinationDatePrecision) => void;
 
   onStartEdit: (
     id: number,
@@ -37,16 +45,27 @@ interface TravelPageProps {
     note?: string | null,
     date?: string | null,
     country?: string | null,
-    status?: DestinationStatus
+    status?: DestinationStatus,
+    datePrecision?: DestinationDatePrecision
   ) => void;
   onSaveEdit: () => Promise<void> | void;
   onDelete: (id: number) => Promise<void> | void;
 }
 
-function formatRecordDate(dateString?: string | null) {
+function formatRecordDate(
+  dateString?: string | null,
+  precision: DestinationDatePrecision = "day"
+) {
   if (!dateString) return "";
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return "";
+
+  if (precision === "month") {
+    return new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
+      month: "long",
+    }).format(date);
+  }
 
   return new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -72,11 +91,13 @@ export default function TravelPage({
   destinationNote,
   destinationDate,
   destinationStatus,
+  destinationDatePrecision,
   setDestinationName,
   setDestinationCountry,
   setDestinationNote,
   setDestinationDate,
   setDestinationStatus,
+  setDestinationDatePrecision,
   onAddDestination,
   editingDestinationId,
   editingDestinationName,
@@ -84,12 +105,14 @@ export default function TravelPage({
   editingDestinationNote,
   editingDestinationDate,
   editingDestinationStatus,
+  editingDestinationDatePrecision,
   setEditingDestinationId,
   setEditingDestinationName,
   setEditingDestinationCountry,
   setEditingDestinationNote,
   setEditingDestinationDate,
   setEditingDestinationStatus,
+  setEditingDestinationDatePrecision,
   onStartEdit,
   onSaveEdit,
   onDelete,
@@ -142,12 +165,40 @@ export default function TravelPage({
               ))}
             </div>
 
-            <input
-              type="date"
-              value={destinationDate}
-              onChange={(e) => setDestinationDate(e.target.value)}
-              className="rounded-[16px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
-            />
+            <div className="flex flex-wrap gap-2">
+              {(["month", "day"] as DestinationDatePrecision[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setDestinationDatePrecision(mode)}
+                  className={`rounded-full px-4 py-2 text-sm transition ${
+                    destinationDatePrecision === mode
+                      ? "bg-[var(--text-main)] text-white"
+                      : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                  }`}
+                >
+                  {mode === "month" ? "仅月份" : "具体日期"}
+                </button>
+              ))}
+            </div>
+
+            {destinationDatePrecision === "month" ? (
+              <input
+                type="month"
+                value={destinationDate ? destinationDate.slice(0, 7) : ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setDestinationDate(value ? `${value}-01` : "");
+                }}
+                className="rounded-[16px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
+              />
+            ) : (
+              <input
+                type="date"
+                value={destinationDate}
+                onChange={(e) => setDestinationDate(e.target.value)}
+                className="rounded-[16px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
+              />
+            )}
 
             <textarea
               value={destinationNote}
@@ -214,12 +265,40 @@ export default function TravelPage({
                       ))}
                     </div>
 
-                    <input
-                      type="date"
-                      value={editingDestinationDate}
-                      onChange={(e) => setEditingDestinationDate(e.target.value)}
-                      className="w-full rounded-[14px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
-                    />
+                    <div className="flex flex-wrap gap-2">
+                      {(["month", "day"] as DestinationDatePrecision[]).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setEditingDestinationDatePrecision(mode)}
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            editingDestinationDatePrecision === mode
+                              ? "bg-[var(--text-main)] text-white"
+                              : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                          }`}
+                        >
+                          {mode === "month" ? "仅月份" : "具体日期"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {editingDestinationDatePrecision === "month" ? (
+                      <input
+                        type="month"
+                        value={editingDestinationDate ? editingDestinationDate.slice(0, 7) : ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setEditingDestinationDate(value ? `${value}-01` : "");
+                        }}
+                        className="w-full rounded-[14px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
+                      />
+                    ) : (
+                      <input
+                        type="date"
+                        value={editingDestinationDate}
+                        onChange={(e) => setEditingDestinationDate(e.target.value)}
+                        className="w-full rounded-[14px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-sm outline-none"
+                      />
+                    )}
 
                     <textarea
                       value={editingDestinationNote}
@@ -242,6 +321,7 @@ export default function TravelPage({
                           setEditingDestinationNote("");
                           setEditingDestinationDate("");
                           setEditingDestinationStatus("wishlist");
+                          setEditingDestinationDatePrecision("day");
                         }}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line-soft)] bg-white text-[var(--text-muted)]"
                       >
@@ -274,7 +354,7 @@ export default function TravelPage({
                       {item.date && (
                         <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[var(--text-muted)]">
                           <CalendarDays size={14} />
-                          {formatRecordDate(item.date)}
+                          {formatRecordDate(item.date, item.date_precision)}
                         </p>
                       )}
 
@@ -294,7 +374,8 @@ export default function TravelPage({
                             item.note,
                             item.date,
                             item.country,
-                            item.status
+                            item.status,
+                            item.date_precision
                           )
                         }
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line-soft)] bg-white text-[var(--text-muted)] transition hover:text-[var(--text-main)]"

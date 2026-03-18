@@ -15,7 +15,52 @@ export function useTasks() {
     fetchTasks();
   }, []);
 
+  const getTodayStart = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  };
+
+  const cleanupOldDailyTasks = async () => {
+    const todayStart = getTodayStart();
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("id, created_at, category")
+      .eq("category", "daily");
+
+    if (error) {
+      console.error("cleanupOldDailyTasks select error:", error.message);
+      return;
+    }
+
+    if (!data || data.length === 0) return;
+
+    const idsToDelete = data
+      .filter((task) => {
+        if (!task.created_at) return false;
+
+        const createdAt = new Date(task.created_at);
+        if (Number.isNaN(createdAt.getTime())) return false;
+
+        return createdAt.getTime() < todayStart.getTime();
+      })
+      .map((task) => task.id);
+
+    if (idsToDelete.length === 0) return;
+
+    const { error: deleteError } = await supabase
+      .from("tasks")
+      .delete()
+      .in("id", idsToDelete);
+
+    if (deleteError) {
+      console.error("cleanupOldDailyTasks delete error:", deleteError.message);
+    }
+  };
+
   const fetchTasks = async () => {
+    await cleanupOldDailyTasks();
+
     const { data, error } = await supabase
       .from("tasks")
       .select("*")

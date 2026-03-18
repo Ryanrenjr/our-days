@@ -8,6 +8,7 @@ import { useDashboardNote } from "../hooks/useDashboardNote";
 import {
   useDestinations,
   type DestinationStatus,
+  type DestinationDatePrecision,
 } from "../hooks/useDestinations";
 import Sidebar from "../components/Sidebar";
 import TaskList from "../components/TaskList";
@@ -26,6 +27,8 @@ export default function ClientHome() {
   const [destinationDate, setDestinationDate] = useState("");
   const [destinationStatus, setDestinationStatus] =
     useState<DestinationStatus>("wishlist");
+  const [destinationDatePrecision, setDestinationDatePrecision] =
+    useState<DestinationDatePrecision>("day");
 
   const [editingDestinationId, setEditingDestinationId] = useState<number | null>(
     null
@@ -36,6 +39,8 @@ export default function ClientHome() {
   const [editingDestinationDate, setEditingDestinationDate] = useState("");
   const [editingDestinationStatus, setEditingDestinationStatus] =
     useState<DestinationStatus>("wishlist");
+  const [editingDestinationDatePrecision, setEditingDestinationDatePrecision] =
+    useState<DestinationDatePrecision>("day");
 
   const taskState = useTasks();
   const tasks: Task[] = Array.isArray(taskState.tasks) ? taskState.tasks : [];
@@ -109,13 +114,20 @@ export default function ClientHome() {
       ? 0
       : Math.round((bothDailyDone / bothDaily.length) * 100);
 
-  const nextDestination =
-    destinations.find((item) => item.status === "wishlist") || destinations[0];
-
-  const formatTravelDate = (dateString?: string | null) => {
+  const formatTravelDate = (
+    dateString?: string | null,
+    precision: DestinationDatePrecision = "day"
+  ) => {
     if (!dateString) return "未设日期";
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return "未设日期";
+
+    if (precision === "month") {
+      return new Intl.DateTimeFormat("zh-CN", {
+        year: "numeric",
+        month: "long",
+      }).format(date);
+    }
 
     return new Intl.DateTimeFormat("zh-CN", {
       year: "numeric",
@@ -123,6 +135,63 @@ export default function ClientHome() {
       day: "numeric",
     }).format(date);
   };
+
+  const getDestinationSortValue = (item: { date?: string | null }) => {
+    if (!item.date) return Number.POSITIVE_INFINITY;
+    const d = new Date(item.date);
+    if (Number.isNaN(d.getTime())) return Number.POSITIVE_INFINITY;
+    return d.getTime();
+  };
+
+  const sortedDestinations = [...destinations].sort((a, b) => {
+    const current = new Date();
+    const today = new Date(
+      current.getFullYear(),
+      current.getMonth(),
+      current.getDate()
+    ).getTime();
+
+    const aTime = getDestinationSortValue(a);
+    const bTime = getDestinationSortValue(b);
+
+    const aFuture = aTime >= today;
+    const bFuture = bTime >= today;
+
+    if (aFuture && !bFuture) return -1;
+    if (!aFuture && bFuture) return 1;
+
+    if (aFuture && bFuture) return aTime - bTime;
+
+    return bTime - aTime;
+  });
+
+  const nextDestination = [...destinations]
+    .filter((item) => item.status === "wishlist" && item.date)
+    .sort((a, b) => {
+      const aTime = new Date(a.date as string).getTime();
+      const bTime = new Date(b.date as string).getTime();
+      return aTime - bTime;
+    })
+    .find((item) => {
+      const current = new Date();
+      const today = new Date(
+        current.getFullYear(),
+        current.getMonth(),
+        current.getDate()
+      ).getTime();
+      return new Date(item.date as string).getTime() >= today;
+    });
+
+  const fallbackDestination =
+    [...destinations]
+      .filter((item) => item.status === "wishlist")
+      .sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : Infinity;
+        const bTime = b.date ? new Date(b.date).getTime() : Infinity;
+        return aTime - bTime;
+      })[0] || destinations[0];
+
+  const featuredDestination = nextDestination || fallbackDestination;
 
   const handleAddDestination = async () => {
     if (!destinationName.trim()) return;
@@ -132,7 +201,8 @@ export default function ClientHome() {
       destinationNote,
       destinationDate || null,
       destinationCountry,
-      destinationStatus
+      destinationStatus,
+      destinationDatePrecision
     );
 
     setDestinationName("");
@@ -140,6 +210,7 @@ export default function ClientHome() {
     setDestinationNote("");
     setDestinationDate("");
     setDestinationStatus("wishlist");
+    setDestinationDatePrecision("day");
   };
 
   const startEditDestination = (
@@ -148,7 +219,8 @@ export default function ClientHome() {
     note?: string | null,
     date?: string | null,
     country?: string | null,
-    status?: DestinationStatus
+    status?: DestinationStatus,
+    datePrecision?: DestinationDatePrecision
   ) => {
     setEditingDestinationId(id);
     setEditingDestinationName(name);
@@ -156,6 +228,7 @@ export default function ClientHome() {
     setEditingDestinationNote(note || "");
     setEditingDestinationDate(date || "");
     setEditingDestinationStatus(status || "wishlist");
+    setEditingDestinationDatePrecision(datePrecision || "day");
   };
 
   const saveDestinationEdit = async () => {
@@ -167,7 +240,8 @@ export default function ClientHome() {
       editingDestinationNote,
       editingDestinationDate || null,
       editingDestinationCountry,
-      editingDestinationStatus
+      editingDestinationStatus,
+      editingDestinationDatePrecision
     );
 
     setEditingDestinationId(null);
@@ -176,6 +250,7 @@ export default function ClientHome() {
     setEditingDestinationNote("");
     setEditingDestinationDate("");
     setEditingDestinationStatus("wishlist");
+    setEditingDestinationDatePrecision("day");
   };
 
   return (
@@ -266,7 +341,7 @@ export default function ClientHome() {
                       </button>
                     </div>
 
-                    {!nextDestination ? (
+                    {!featuredDestination ? (
                       <div className="mt-6 toss-card-sm px-5 py-6 text-sm text-[var(--text-muted)]">
                         还没有旅行记录，可以先添加一条。
                       </div>
@@ -275,42 +350,45 @@ export default function ClientHome() {
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0 flex-1">
                             <p className="text-[14px] font-medium uppercase tracking-[0.12em] text-[var(--text-soft)]">
-                              {nextDestination.status === "wishlist"
+                              {featuredDestination.status === "wishlist"
                                 ? "WISHLIST"
                                 : "VISITED"}
                             </p>
 
                             <h3 className="mt-3 text-[36px] font-bold tracking-[-0.05em] text-[var(--text-main)] md:text-[44px]">
-                              {nextDestination.name}
+                              {featuredDestination.name}
                             </h3>
 
                             <div className="mt-4 flex flex-wrap items-center gap-2">
-                              {nextDestination.country && (
+                              {featuredDestination.country && (
                                 <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
-                                  {nextDestination.country}
+                                  {featuredDestination.country}
                                 </span>
                               )}
 
                               <span
                                 className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-medium ${
-                                  nextDestination.status === "wishlist"
+                                  featuredDestination.status === "wishlist"
                                     ? "bg-blue-50 text-blue-700"
                                     : "bg-green-50 text-green-700"
                                 }`}
                               >
-                                {nextDestination.status === "wishlist"
+                                {featuredDestination.status === "wishlist"
                                   ? "想去"
                                   : "已去过"}
                               </span>
                             </div>
 
                             <p className="mt-5 text-sm font-medium text-[var(--text-muted)]">
-                              {formatTravelDate(nextDestination.date)}
+                              {formatTravelDate(
+                                featuredDestination.date,
+                                featuredDestination.date_precision
+                              )}
                             </p>
 
-                            {nextDestination.note && (
+                            {featuredDestination.note && (
                               <p className="mt-3 max-w-2xl text-[15px] leading-7 text-[var(--text-muted)]">
-                                {nextDestination.note}
+                                {featuredDestination.note}
                               </p>
                             )}
                           </div>
@@ -328,36 +406,40 @@ export default function ClientHome() {
             )}
 
             {activeTab === "travel" && (
-              <TravelPage
-                destinations={destinations}
-                destinationName={destinationName}
-                destinationCountry={destinationCountry}
-                destinationNote={destinationNote}
-                destinationDate={destinationDate}
-                destinationStatus={destinationStatus}
-                setDestinationName={setDestinationName}
-                setDestinationCountry={setDestinationCountry}
-                setDestinationNote={setDestinationNote}
-                setDestinationDate={setDestinationDate}
-                setDestinationStatus={setDestinationStatus}
-                onAddDestination={handleAddDestination}
-                editingDestinationId={editingDestinationId}
-                editingDestinationName={editingDestinationName}
-                editingDestinationCountry={editingDestinationCountry}
-                editingDestinationNote={editingDestinationNote}
-                editingDestinationDate={editingDestinationDate}
-                editingDestinationStatus={editingDestinationStatus}
-                setEditingDestinationId={setEditingDestinationId}
-                setEditingDestinationName={setEditingDestinationName}
-                setEditingDestinationCountry={setEditingDestinationCountry}
-                setEditingDestinationNote={setEditingDestinationNote}
-                setEditingDestinationDate={setEditingDestinationDate}
-                setEditingDestinationStatus={setEditingDestinationStatus}
-                onStartEdit={startEditDestination}
-                onSaveEdit={saveDestinationEdit}
-                onDelete={deleteDestination}
-              />
-            )}
+  <TravelPage
+    destinations={sortedDestinations}
+    destinationName={destinationName}
+    destinationCountry={destinationCountry}
+    destinationNote={destinationNote}
+    destinationDate={destinationDate}
+    destinationStatus={destinationStatus}
+    destinationDatePrecision={destinationDatePrecision}
+    setDestinationName={setDestinationName}
+    setDestinationCountry={setDestinationCountry}
+    setDestinationNote={setDestinationNote}
+    setDestinationDate={setDestinationDate}
+    setDestinationStatus={setDestinationStatus}
+    setDestinationDatePrecision={setDestinationDatePrecision}
+    onAddDestination={handleAddDestination}
+    editingDestinationId={editingDestinationId}
+    editingDestinationName={editingDestinationName}
+    editingDestinationCountry={editingDestinationCountry}
+    editingDestinationNote={editingDestinationNote}
+    editingDestinationDate={editingDestinationDate}
+    editingDestinationStatus={editingDestinationStatus}
+    editingDestinationDatePrecision={editingDestinationDatePrecision}
+    setEditingDestinationId={setEditingDestinationId}
+    setEditingDestinationName={setEditingDestinationName}
+    setEditingDestinationCountry={setEditingDestinationCountry}
+    setEditingDestinationNote={setEditingDestinationNote}
+    setEditingDestinationDate={setEditingDestinationDate}
+    setEditingDestinationStatus={setEditingDestinationStatus}
+    setEditingDestinationDatePrecision={setEditingDestinationDatePrecision}
+    onStartEdit={startEditDestination}
+    onSaveEdit={saveDestinationEdit}
+    onDelete={deleteDestination}
+  />
+)}
 
             {activeTab === "boy" && (
               <TaskList
