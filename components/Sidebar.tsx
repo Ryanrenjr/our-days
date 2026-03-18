@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, User, Sparkles, Heart, MapPinned, LogOut } from "lucide-react";
+import { LayoutGrid, Goal, Music4, Heart, MapPinned, LogOut } from "lucide-react";
 import type { Tab } from "../types";
 import { createClient } from "../lib/supabase/client";
 
@@ -16,8 +16,8 @@ const navItems: {
   icon: any;
 }[] = [
   { key: "overview", label: "总览", sublabel: "Overview", icon: LayoutGrid },
-  { key: "boy", label: "Ryan的空间", sublabel: "Ryan", icon: User },
-  { key: "girl", label: "Suki的空间", sublabel: "Suki", icon: Sparkles },
+  { key: "boy", label: "Ryan的空间", sublabel: "Ryan", icon: Goal },
+  { key: "girl", label: "Suki的空间", sublabel: "Suki", icon: Music4 },
   { key: "both", label: "共同计划", sublabel: "Together", icon: Heart },
   { key: "travel", label: "旅行记录", sublabel: "Travel", icon: MapPinned },
 ];

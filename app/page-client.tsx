@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { User, Sparkles, Heart, MapPinned } from "lucide-react";
+import { Goal, Music4, Heart, MapPinned } from "lucide-react";
 import type { Task, Tab } from "../types";
 import { useTasks } from "../hooks/useTasks";
 import { useDashboardNote } from "../hooks/useDashboardNote";
@@ -291,7 +291,7 @@ export default function ClientHome() {
                     title="Ryan的空间"
                     description={`${boyPending} 个今日待办`}
                     progress={boyDailyProgress}
-                    icon={User}
+                    icon={Goal}
                     iconBgClass="bg-[var(--accent-blue)]"
                     ringToneClass="text-[var(--ring-blue)]"
                     onClick={() => setActiveTab("boy")}
@@ -302,7 +302,7 @@ export default function ClientHome() {
                     title="Suki的空间"
                     description={`${girlPending} 个今日待办`}
                     progress={girlDailyProgress}
-                    icon={Sparkles}
+                    icon={Music4}
                     iconBgClass="bg-[var(--accent-pink)]"
                     ringToneClass="text-[var(--ring-pink)]"
                     onClick={() => setActiveTab("girl")}
@@ -446,8 +446,8 @@ export default function ClientHome() {
                 tasks={tasks}
                 ownerFilter="boy"
                 title="Ryan的空间"
-                subtitle="把今天要完成的事，一件件轻轻放进来。"
-                icon={User}
+                subtitle=""
+                icon={Goal}
                 tone="blue"
                 emptyText="这里还没有新的安排，先记录今天最重要的一件事吧。"
                 onToggle={toggleTask}
@@ -462,8 +462,8 @@ export default function ClientHome() {
                 tasks={tasks}
                 ownerFilter="girl"
                 title="Suki的空间"
-                subtitle="她的学习、目标和日常节奏，都可以安静地放在这里。"
-                icon={Sparkles}
+                subtitle=""
+                icon={Music4}
                 tone="pink"
                 emptyText="这里还没有新的安排，先写下一件想完成的小事吧。"
                 onToggle={toggleTask}
@@ -478,7 +478,7 @@ export default function ClientHome() {
                 tasks={tasks}
                 ownerFilter="both"
                 title="共同计划"
-                subtitle="一起要去的地方，一起要做的事，都值得好好记录。"
+                subtitle=""
                 icon={Heart}
                 tone="green"
                 emptyText="这里还没有共同计划，先写下一件你们想一起完成的事。"

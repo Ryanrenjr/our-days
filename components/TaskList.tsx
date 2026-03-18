@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Check, Edit2, Trash2, CalendarDays, X, AlertTriangle } from "lucide-react";
+import {
+  Check,
+  Edit2,
+  Trash2,
+  CalendarDays,
+  X,
+  AlertTriangle,
+} from "lucide-react";
 import type {
   Task,
   TaskOwner,
@@ -49,15 +56,15 @@ interface TaskListProps {
 const toneMap: Record<Tone, { soft: string; badge: string }> = {
   blue: {
     soft: "bg-[var(--accent-blue)]",
-    badge: "text-[var(--ring-blue)]",
+    badge: "bg-[var(--ring-blue)]",
   },
   pink: {
     soft: "bg-[var(--accent-pink)]",
-    badge: "text-[var(--ring-pink)]",
+    badge: "bg-[var(--ring-pink)]",
   },
   green: {
     soft: "bg-[var(--accent-green)]",
-    badge: "text-[var(--ring-green)]",
+    badge: "bg-[var(--ring-green)]",
   },
 };
 
@@ -114,10 +121,14 @@ export default function TaskList({
 }: TaskListProps) {
   const [inputValue, setInputValue] = useState("");
   const [descriptionValue, setDescriptionValue] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<TaskCategory>("daily");
+  const [selectedCategory, setSelectedCategory] =
+    useState<TaskCategory>("daily");
   const [selectedDate, setSelectedDate] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState<TaskPriority>("medium");
-  const [selectedTaskType, setSelectedTaskType] = useState<TaskType>("other");
+  const [selectedPriority, setSelectedPriority] =
+    useState<TaskPriority>("medium");
+  const [selectedTaskType, setSelectedTaskType] =
+    useState<TaskType>("other");
+  const [isAddExpanded, setIsAddExpanded] = useState(false);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -126,24 +137,47 @@ export default function TaskList({
   const [editDate, setEditDate] = useState("");
   const [editPriority, setEditPriority] = useState<TaskPriority>("medium");
   const [editTaskType, setEditTaskType] = useState<TaskType>("other");
-  const [isAddExpanded, setIsAddExpanded] = useState(false);
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const today = new Date();
-  const dayNumber = new Intl.DateTimeFormat("en-GB", { day: "numeric" }).format(today);
+  const dayNumber = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+  }).format(today);
   const monthWeekText = `${new Intl.DateTimeFormat("en-GB", {
     month: "long",
   }).format(today)} · ${new Intl.DateTimeFormat("zh-CN", {
     weekday: "long",
   }).format(today)}`;
 
+  const isToday = (dateString?: string | null) => {
+    if (!dateString) return false;
+
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return false;
+
+    const now = new Date();
+
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
+
   const filteredTasks =
     ownerFilter === "all"
-      ? tasks.filter((t) => t.category === selectedCategory)
-      : tasks.filter(
-          (t) => t.owner === ownerFilter && t.category === selectedCategory
-        );
+      ? tasks.filter((t) => {
+          if (t.category !== selectedCategory) return false;
+          if (selectedCategory === "daily") return isToday(t.created_at);
+          return true;
+        })
+      : tasks.filter((t) => {
+          if (t.owner !== ownerFilter) return false;
+          if (t.category !== selectedCategory) return false;
+          if (selectedCategory === "daily") return isToday(t.created_at);
+          return true;
+        });
 
   const completedCount = filteredTasks.filter((t) => t.is_completed).length;
   const pendingCount = filteredTasks.filter((t) => !t.is_completed).length;
@@ -243,8 +277,12 @@ export default function TaskList({
     const date = new Date(dateString);
     if (Number.isNaN(date.getTime())) return null;
 
-    const day = new Intl.DateTimeFormat("en-GB", { day: "numeric" }).format(date);
-    const month = new Intl.DateTimeFormat("zh-CN", { month: "short" }).format(date);
+    const day = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+    }).format(date);
+    const month = new Intl.DateTimeFormat("zh-CN", {
+      month: "short",
+    }).format(date);
 
     return { day, month };
   };
@@ -255,7 +293,11 @@ export default function TaskList({
     const today = new Date();
     const target = new Date(dateString);
 
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
     const startOfTarget = new Date(
       target.getFullYear(),
       target.getMonth(),
@@ -270,6 +312,25 @@ export default function TaskList({
     if (diffDays > 1) return `还有 ${diffDays} 天`;
     if (diffDays === -1) return "已过期 1 天";
     return `已过期 ${Math.abs(diffDays)} 天`;
+  };
+
+  const isOverdue = (task: Task) => {
+    if (task.category !== "scheduled") return false;
+    if (task.is_completed) return false;
+    if (!task.due_date) return false;
+
+    const due = new Date(task.due_date);
+    if (Number.isNaN(due.getTime())) return false;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDay = new Date(
+      due.getFullYear(),
+      due.getMonth(),
+      due.getDate()
+    );
+
+    return dueDay.getTime() < today.getTime();
   };
 
   const toneClass = toneMap[tone];
@@ -292,7 +353,9 @@ export default function TaskList({
                 <p className="text-xl font-medium tracking-[-0.03em] text-[var(--text-main)]">
                   {monthWeekText}
                 </p>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">{subtitle}</p>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
+                  {subtitle}
+                </p>
               </div>
             </div>
           </div>
@@ -334,6 +397,7 @@ export default function TaskList({
         ].map((item) => (
           <button
             key={item.key}
+            type="button"
             onClick={() => setSelectedCategory(item.key as TaskCategory)}
             className={`rounded-full px-4 py-2 text-sm transition ${
               selectedCategory === item.key
@@ -347,92 +411,100 @@ export default function TaskList({
       </div>
 
       {ownerFilter !== "all" && (
-  <div className="toss-card mb-8 p-4">
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onFocus={() => setIsAddExpanded(true)}
-          onKeyDown={(e) => e.key === "Enter" && handleAddSubmit()}
-          placeholder={`添加${categoryLabelMap[selectedCategory]}标题...`}
-          className="flex-1 rounded-[18px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-[15px] outline-none"
-        />
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsAddExpanded((prev) => !prev)}
-            className="rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text-main)]"
-          >
-            {isAddExpanded ? "收起" : "更多"}
-          </button>
-
-          <button
-            onClick={handleAddSubmit}
-            className={`rounded-[16px] px-5 py-3 text-sm font-medium text-[var(--text-main)] ${toneClass.soft}`}
-          >
-            添加
-          </button>
-        </div>
-      </div>
-
-      {isAddExpanded && (
-        <div className="rounded-[18px] bg-[var(--bg-soft)] p-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-2">
-              {(["study", "work", "health", "other"] as TaskType[]).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedTaskType(type)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    selectedTaskType === type
-                      ? taskTypeClassMap[type]
-                      : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
-                  }`}
-                >
-                  {taskTypeLabelMap[type]}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {(["low", "medium", "high"] as TaskPriority[]).map((priority) => (
-                <button
-                  key={priority}
-                  onClick={() => setSelectedPriority(priority)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    selectedPriority === priority
-                      ? priorityClassMap[priority]
-                      : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
-                  }`}
-                >
-                  {priorityLabelMap[priority]}优先级
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              value={descriptionValue}
-              onChange={(e) => setDescriptionValue(e.target.value)}
-              placeholder="备注（可选）"
-              className="min-h-[88px] rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-[15px] outline-none"
-            />
-
-            {selectedCategory === "scheduled" && (
+        <div className="toss-card mb-8 p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-sm outline-none"
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onFocus={() => setIsAddExpanded(true)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddSubmit()}
+                placeholder={`添加${categoryLabelMap[selectedCategory]}标题...`}
+                className="flex-1 rounded-[18px] border border-[var(--line-soft)] bg-[var(--bg-soft)] px-4 py-3 text-[15px] outline-none"
               />
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddExpanded((prev) => !prev)}
+                  className="rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text-main)]"
+                >
+                  {isAddExpanded ? "收起" : "更多"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddSubmit}
+                  className={`rounded-[16px] px-5 py-3 text-sm font-medium text-[var(--text-main)] ${toneClass.soft}`}
+                >
+                  添加
+                </button>
+              </div>
+            </div>
+
+            {isAddExpanded && (
+              <div className="rounded-[18px] bg-[var(--bg-soft)] p-4">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(["study", "work", "health", "other"] as TaskType[]).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setSelectedTaskType(type)}
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            selectedTaskType === type
+                              ? taskTypeClassMap[type]
+                              : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                          }`}
+                        >
+                          {taskTypeLabelMap[type]}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(["low", "medium", "high"] as TaskPriority[]).map(
+                      (priority) => (
+                        <button
+                          key={priority}
+                          type="button"
+                          onClick={() => setSelectedPriority(priority)}
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            selectedPriority === priority
+                              ? priorityClassMap[priority]
+                              : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                          }`}
+                        >
+                          {priorityLabelMap[priority]}优先级
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <textarea
+                    value={descriptionValue}
+                    onChange={(e) => setDescriptionValue(e.target.value)}
+                    placeholder="备注（可选）"
+                    className="min-h-[88px] rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-[15px] outline-none"
+                  />
+
+                  {selectedCategory === "scheduled" && (
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="rounded-[16px] border border-[var(--line-soft)] bg-white px-4 py-3 text-sm outline-none"
+                    />
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
       )}
-    </div>
-  </div>
-)}
 
       <div className="mb-6">
         <div className="h-2 overflow-hidden rounded-full bg-black/5">
@@ -457,6 +529,7 @@ export default function TaskList({
           <li key={task.id} className="toss-card p-5">
             <div className="flex items-start gap-4">
               <button
+                type="button"
                 onClick={() => onToggle(task.id, task.is_completed)}
                 className={`mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border transition ${
                   task.is_completed
@@ -479,35 +552,41 @@ export default function TaskList({
                     />
 
                     <div className="flex flex-wrap gap-2">
-                      {(["study", "work", "health", "other"] as TaskType[]).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setEditTaskType(type)}
-                          className={`rounded-full px-4 py-2 text-sm transition ${
-                            editTaskType === type
-  ? taskTypeClassMap[type]
-  : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
-                          }`}
-                        >
-                          {taskTypeLabelMap[type]}
-                        </button>
-                      ))}
+                      {(["study", "work", "health", "other"] as TaskType[]).map(
+                        (type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setEditTaskType(type)}
+                            className={`rounded-full px-4 py-2 text-sm transition ${
+                              editTaskType === type
+                                ? taskTypeClassMap[type]
+                                : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                            }`}
+                          >
+                            {taskTypeLabelMap[type]}
+                          </button>
+                        )
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {(["low", "medium", "high"] as TaskPriority[]).map((priority) => (
-                        <button
-                          key={priority}
-                          onClick={() => setEditPriority(priority)}
-                          className={`rounded-full px-4 py-2 text-sm transition ${
-                            editPriority === priority
-  ? priorityClassMap[priority]
-  : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
-                          }`}
-                        >
-                          {priorityLabelMap[priority]}优先级
-                        </button>
-                      ))}
+                      {(["low", "medium", "high"] as TaskPriority[]).map(
+                        (priority) => (
+                          <button
+                            key={priority}
+                            type="button"
+                            onClick={() => setEditPriority(priority)}
+                            className={`rounded-full px-4 py-2 text-sm transition ${
+                              editPriority === priority
+                                ? priorityClassMap[priority]
+                                : "bg-white text-[var(--text-muted)] border border-[var(--line-soft)]"
+                            }`}
+                          >
+                            {priorityLabelMap[priority]}优先级
+                          </button>
+                        )
+                      )}
                     </div>
 
                     <textarea
@@ -517,19 +596,22 @@ export default function TaskList({
                     />
 
                     <div className="inline-flex rounded-full bg-black/5 p-1">
-                      {(["daily", "scheduled", "yearly"] as TaskCategory[]).map((item) => (
-                        <button
-                          key={item}
-                          onClick={() => setEditCategory(item)}
-                          className={`rounded-full px-4 py-2 text-sm transition ${
-                            editCategory === item
-                              ? "bg-white shadow-sm text-[var(--text-main)]"
-                              : "text-[var(--text-muted)]"
-                          }`}
-                        >
-                          {categoryLabelMap[item]}
-                        </button>
-                      ))}
+                      {(["daily", "scheduled", "yearly"] as TaskCategory[]).map(
+                        (item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setEditCategory(item)}
+                            className={`rounded-full px-4 py-2 text-sm transition ${
+                              editCategory === item
+                                ? "bg-white shadow-sm text-[var(--text-main)]"
+                                : "text-[var(--text-muted)]"
+                            }`}
+                          >
+                            {categoryLabelMap[item]}
+                          </button>
+                        )
+                      )}
                     </div>
 
                     {editCategory === "scheduled" && (
@@ -543,12 +625,14 @@ export default function TaskList({
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleEditSubmit(task.id)}
                         className="inline-flex items-center justify-center rounded-full bg-[var(--text-main)] p-2 text-white"
                       >
                         <Check size={15} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => {
                           setEditingId(null);
                           setEditTitle("");
@@ -581,33 +665,53 @@ export default function TaskList({
                           className={`text-[17px] leading-7 tracking-[-0.02em] transition ${
                             task.is_completed
                               ? "text-[var(--text-soft)] line-through"
+                              : isOverdue(task)
+                              ? "text-red-600"
                               : "text-[var(--text-main)]"
                           }`}
                         >
                           {task.title}
                         </span>
 
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${taskTypeClassMap[task.task_type]}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${taskTypeClassMap[task.task_type]}`}
+                        >
                           {taskTypeLabelMap[task.task_type]}
                         </span>
 
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${priorityClassMap[task.priority]}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${priorityClassMap[task.priority]}`}
+                        >
                           {priorityLabelMap[task.priority]}
                         </span>
 
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs text-[var(--text-main)] ${toneClass.soft}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs text-[var(--text-main)] ${toneClass.soft}`}
+                        >
                           {ownerLabelMap[task.owner]}
                         </span>
 
                         {formatDueDate(task.due_date) && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-black/[0.04] px-2.5 py-1 text-xs text-[var(--text-muted)]">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
+                              isOverdue(task)
+                                ? "bg-red-50 text-red-600"
+                                : "bg-black/[0.04] text-[var(--text-muted)]"
+                            }`}
+                          >
                             <CalendarDays size={12} />
                             {formatDueDate(task.due_date)}
                           </span>
                         )}
                       </div>
 
-                      <p className="mt-2 text-sm text-[var(--text-muted)]">
+                      <p
+                        className={`mt-2 text-sm ${
+                          isOverdue(task)
+                            ? "text-red-500"
+                            : "text-[var(--text-muted)]"
+                        }`}
+                      >
                         {getCountdownText(task.due_date)}
                       </p>
 
@@ -631,15 +735,21 @@ export default function TaskList({
                         {task.title}
                       </span>
 
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${taskTypeClassMap[task.task_type]}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${taskTypeClassMap[task.task_type]}`}
+                      >
                         {taskTypeLabelMap[task.task_type]}
                       </span>
 
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${priorityClassMap[task.priority]}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${priorityClassMap[task.priority]}`}
+                      >
                         {priorityLabelMap[task.priority]}
                       </span>
 
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs text-[var(--text-main)] ${toneClass.soft}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs text-[var(--text-main)] ${toneClass.soft}`}
+                      >
                         {ownerLabelMap[task.owner]}
                       </span>
 
@@ -664,6 +774,7 @@ export default function TaskList({
                       <AlertTriangle size={14} className="text-red-500" />
                       <span className="text-xs text-red-600">确认删除？</span>
                       <button
+                        type="button"
                         onClick={() => {
                           onDelete(task.id);
                           setDeleteConfirmId(null);
@@ -673,6 +784,7 @@ export default function TaskList({
                         是
                       </button>
                       <button
+                        type="button"
                         onClick={() => setDeleteConfirmId(null)}
                         className="text-xs font-medium text-[var(--text-muted)]"
                       >
@@ -682,12 +794,14 @@ export default function TaskList({
                   ) : (
                     <>
                       <button
+                        type="button"
                         onClick={() => startEdit(task)}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line-soft)] bg-white text-[var(--text-muted)] transition hover:text-[var(--text-main)]"
                       >
                         <Edit2 size={15} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setDeleteConfirmId(task.id)}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line-soft)] bg-white text-[var(--text-muted)] transition hover:text-red-500"
                       >
